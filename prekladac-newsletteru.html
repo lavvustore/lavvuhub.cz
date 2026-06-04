@@ -700,8 +700,11 @@ function loadIframe(lang) {
   const iframe = document.getElementById("iframe-"+lang);
   if (!iframe) return;
   const html = state.outputs[lang]?.html || "";
-  // srcdoc funguje všude bez CORS omezení (blob: URL může být blokováno na GitHub Pages)
-  iframe.srcdoc = html;
+  // Reset src nejprve aby vynutil reload, pak nastaví srcdoc
+  iframe.removeAttribute("srcdoc");
+  iframe.removeAttribute("src");
+  // Krátká pauza pak nastaví nový obsah
+  setTimeout(() => { iframe.srcdoc = html; }, 10);
 }
 
 function switchPreviewTab(lang) {
@@ -808,20 +811,26 @@ Vrať pouze bloky které jsi změnil. Nezměněné bloky nevracej.
     );
     state.outputs[lang].blocks = updatedBlocks;
 
-    // Přegeneruj HTML s novými texty
+    // Přegeneruj HTML od základu z původního českého HTML
     const newHtml = applyAll(state.html, updatedBlocks, lang);
     state.outputs[lang].html = newHtml;
 
     // Ulož do chatové historie jen shrnutí
     chatHistories[lang].push({ role:"assistant", content: `Upraveno ${changes.length} textů.` });
 
-    // Refresh iframe
+    // Refresh iframe — vynuť reload
     loadIframe(lang);
 
     const container = document.getElementById("chat-msgs-"+lang);
     const thinking = container?.querySelector(".chat-thinking");
     if (thinking) thinking.remove();
-    addChatMsg(lang, "assistant", `✓ Upraveno ${changes.length} ${changes.length===1?"text":"texty/ů"} — náhled aktualizován.`);
+
+    // Zobraz co konkrétně bylo změněno
+    const changeDetails = changes.map(ch => {
+      const orig = currentBlocks.find(b => b.id === ch.id);
+      return orig ? `"${orig.translated}" → "${ch.translated}"` : `ID ${ch.id}: "${ch.translated}"`;
+    }).join("\n");
+    addChatMsg(lang, "assistant", `✓ Upraveno ${changes.length} ${changes.length===1?"text":"texty/ů"}:\n${changeDetails}`);
 
   } catch(e) {
     const container = document.getElementById("chat-msgs-"+lang);
