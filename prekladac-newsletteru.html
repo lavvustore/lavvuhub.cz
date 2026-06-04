@@ -455,24 +455,82 @@ async function startGenerate() {
 // TEXT EXTRACTION
 // ══════════════════════════════════════════
 function extractTextBlocks(html) {
-  const doc=new DOMParser().parseFromString(html,"text/html");
-  const blocks=[]; let id=0;
-  const navLinks=["NOVINKY","ZLATO","STŘÍBRO","HODINKY","HODINY","BUDÍKY","STROJKY","ŘEMÍNKY"];
-  const SKIP=[/Copyright/i,/UNSUBSCRIBE/i,/All rights reserved/i,/list-manage\.com/,/mailchimp/i,/vcard/i,/address book/i,/legií/i,/Nové Město/i,/Czech Republic/i,/^\s*Email\s*$/i,/^\s*E-shop\s*$/i];
-  const isContact=el=>{ const t=(el.closest("td")||{}).textContent||""; return t.includes("Továrna na čas")||t.includes("LAVVU.STORE")||t.includes("+420")||t.includes("WhatsApp")||t.includes("werktags")||t.includes("robocze")||t.includes("všední"); };
-  const isFooter=el=>!!el.closest("#templateFooter,.mcnFollowBlock");
-  doc.querySelectorAll(".mcnTextContent,.mcnButtonContent a,.mcnPreviewText").forEach(el=>{
-    if (isFooter(el)||isContact(el)) return;
-    const t=(el.innerText||el.textContent||"").trim(); if (!t) return;
-    if (SKIP.some(p=>p.test(t))) return;
-    if (navLinks.some(n=>t.includes(n)))                               {blocks.push({id:id++,type:"nav",original:t,translated:""}); return;}
-    if (t.includes("Buďte s námi v kontaktu"))                         {blocks.push({id:id++,type:"contact_heading",original:t,translated:""}); return;}
-    if (t.includes("VELKOOBCHODNÍ")&&t.includes("E-SHOP"))             {blocks.push({id:id++,type:"eshop_label",original:t,translated:""}); return;}
-    if (t.includes("TOVARNANACAS.STORE")||(t.includes("LAVVU.STORE")&&!t.includes("+420"))){blocks.push({id:id++,type:"eshop_url",original:t,translated:""}); return;}
-    if (t.includes("PŘIHLÁSIT SE")||t.includes("PRIHLÁSIT"))           {blocks.push({id:id++,type:"login",original:t,translated:""}); return;}
-    if (el.tagName==="A"&&el.closest(".mcnButtonContent"))             {blocks.push({id:id++,type:"button_other",original:t,translated:""}); return;}
-    blocks.push({id:id++,type:"text",original:t,translated:""});
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const blocks = []; let id = 0;
+  const seen = new Set();
+
+  const navLinks = ["NOVINKY","ZLATO","STŘÍBRO","HODINKY","HODINY","BUDÍKY","STROJKY","ŘEMÍNKY"];
+  const SKIP = [/Copyright/i,/UNSUBSCRIBE/i,/All rights reserved/i,/list-manage\.com/,/mailchimp/i,/vcard/i,/address book/i,/legií/i,/Nové Město/i,/Czech Republic/i,/^\s*Email\s*$/i,/^\s*E-shop\s*$/i,/^\s*&\s*$/,/^\s*►\s*$/];
+  const isContact = el => { const t = (el.closest("td")||{}).textContent||""; return t.includes("Továrna na čas")||t.includes("LAVVU.STORE")||t.includes("+420")||t.includes("WhatsApp")||t.includes("werktags")||t.includes("robocze")||t.includes("všední"); };
+  const isFooter = el => !!el.closest("#templateFooter,.mcnFollowBlock");
+
+  const addBlock = (type, text, el) => {
+    const t = text.trim();
+    if (!t || t.length < 2 || seen.has(t)) return;
+    seen.add(t);
+    blocks.push({ id: id++, type, original: t, translated: "" });
+  };
+
+  // 1. Preheader (skrytý náhledový text)
+  const preheader = doc.querySelector(".mcnPreviewText");
+  if (preheader) {
+    const t = (preheader.textContent||"").trim();
+    if (t && !SKIP.some(p=>p.test(t))) addBlock("text", t, preheader);
+  }
+
+  // 2. Tlačítka
+  doc.querySelectorAll(".mcnButtonContent a").forEach(el => {
+    if (isFooter(el)) return;
+    const t = (el.textContent||"").trim();
+    if (!t || SKIP.some(p=>p.test(t))) return;
+    if (t.includes("PŘIHLÁSIT SE")||t.includes("PRIHLÁSIT")) { addBlock("login", t, el); return; }
+    addBlock("button_other", t, el);
   });
+
+  // 3. Hlavní textové bloky — procházíme po odstavcích a span/strong/em prvcích
+  doc.querySelectorAll(".mcnTextContent").forEach(el => {
+    if (isFooter(el) || isContact(el)) return;
+
+    // Zkontroluj navigaci
+    const full = (el.textContent||"").trim();
+    if (navLinks.some(n => full.includes(n))) {
+      if (!seen.has(full)) { addBlock("nav", full, el); }
+      return;
+    }
+    if (full.includes("Buďte s námi v kontaktu")) { addBlock("contact_heading", full, el); return; }
+    if (full.includes("VELKOOBCHODNÍ") && full.includes("E-SHOP")) { addBlock("eshop_label", full, el); return; }
+    if (full.includes("TOVARNANACAS.STORE") || (full.includes("LAVVU.STORE") && !full.includes("+420"))) { addBlock("eshop_url", full, el); return; }
+
+    // Zkus nejprve jednotlivé odstavce <p>
+    const paras = el.querySelectorAll("p, h1, h2, h3, h4");
+    if (paras.length > 0) {
+      paras.forEach(p => {
+        const t = (p.textContent||"").trim();
+        if (!t || t.length < 2 || SKIP.some(x=>x.test(t))) return;
+        addBlock("text", t, p);
+      });
+    }
+
+    // Zkus div bloky s textem
+    const divs = el.querySelectorAll("div");
+    divs.forEach(d => {
+      // Jen divs které mají přímý textový obsah (ne jen nested elementy)
+      const t = (d.textContent||"").trim();
+      if (!t || t.length < 2 || seen.has(t) || SKIP.some(x=>x.test(t))) return;
+      // Přeskočit divs které obsahují jiné divs (jsou to kontejnery)
+      if (d.querySelector("div,p,table")) return;
+      addBlock("text", t, d);
+    });
+
+    // Fallback — celý blok pokud nic nenašli výše
+    if (!paras.length) {
+      const t = full;
+      if (t && t.length > 1 && !seen.has(t) && !SKIP.some(p=>p.test(t))) {
+        addBlock("text", t, el);
+      }
+    }
+  });
+
   return blocks;
 }
 
@@ -589,40 +647,18 @@ function applyAll(html,blocks,lang) {
   const el=FIXED_TRANS.eshop_label[lang]; if (el){out=out.replace(/VELKOOBCHODNÍ\s*E-?SHOP/gi,el);out=out.replace(/VELKOOBCHODNÍM\s*E-?SHOPU/gi,el);}
   const lb=FIXED_TRANS.login_button[lang]; if (lb){out=out.replace(/PŘIHLÁSIT SE ►/g,lb);out=out.replace(/PŘIHLÁSIT SE &amp;#9658;/g,lb);}
   if (!isCsSk){out=out.replace(/(color\s*:\s*)#18[Bb][Dd]13/g,"$1#003357");out=out.replace(/color="#18[Bb][Dd]13"/g,'color="#003357"');out=out.replace(/(background-color\s*:\s*)#18BD13/gi,"$1#003357");out=out.replace(/background-color="#18BD13"/gi,'background-color="#003357"');}
-  // Texty — nahrazení přes DOM parser (spolehlivější než regex na celém HTML)
-  if (blocks.some(b => b.translated && b.translated !== b.original)) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(out, "text/html");
-
-    const replaceInEl = (el, original, translated) => {
-      // Projdi textové uzly
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      const nodes = [];
-      let node;
-      while ((node = walker.nextNode())) nodes.push(node);
-      nodes.forEach(n => {
-        if (n.textContent.includes(original)) {
-          n.textContent = n.textContent.split(original).join(translated);
-        }
-      });
-      // Projdi atributy title a alt
-      el.querySelectorAll("[title],[alt]").forEach(e => {
-        if (e.title === original) e.title = translated;
-        if (e.alt === original) e.alt = translated;
-      });
-    };
-
-    blocks.forEach(b => {
-      if (!b.translated || b.translated === b.original) return;
-      if (["nav","contact_heading","eshop_label","eshop_url","login"].includes(b.type)) return;
-      try { replaceInEl(doc.body, b.original, b.translated); } catch {}
-    });
-
-    // Serializuj zpět — zachovat doctype a head z originálu
-    const bodyHtml = doc.body.innerHTML;
-    // Nahraď jen <body>...</body> část v originálním HTML
-    out = out.replace(/<body[^>]*>[\s\S]*<\/body>/i, `<body${(out.match(/<body([^>]*)>/i)||['',''])[1]}>${bodyHtml}</body>`);
-  }
+  // Texty — přímé nahrazení v HTML stringu
+  // Pracujeme jen s textovými obsahy tagů, ne s atributy
+  blocks.forEach(b => {
+    if (!b.translated || b.translated === b.original) return;
+    if (["nav","contact_heading","eshop_label","eshop_url","login"].includes(b.type)) return;
+    try {
+      // Escapuj speciální regex znaky
+      const escaped = b.original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Nahraď jen mezi HTML tagy (ne v atributech)
+      out = out.replace(new RegExp(escaped, "g"), b.translated);
+    } catch(e) {}
+  });
   return out;
 }
 
