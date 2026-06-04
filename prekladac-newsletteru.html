@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Překladač newsletterů — Továrna na čas · LAVVU</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: #f0f2f5; color: #1d1d1f; min-height: 100vh; }
+.app { max-width: 1060px; margin: 0 auto; padding: 0 0 48px; }
+
+/* NAV */
+.nav { background: #fff; border-bottom: 1px solid #e2e5e9; display: flex; align-items: center; gap: 0; padding: 0 28px; position: sticky; top: 0; z-index: 100; }
+.nav-brand { font-size: 15px; font-weight: 700; color: #003357; padding: 18px 0; margin-right: 28px; white-space: nowrap; }
+.nav-brand span { font-weight: 400; color: #999; font-size: 13px; margin-left: 6px; }
+.nav-tab { padding: 18px 18px 16px; font-size: 13px; font-weight: 500; color: #888; cursor: pointer; border-bottom: 3px solid transparent; transition: all .15s; border: none; background: none; }
+.nav-tab:hover { color: #003357; background: #f5f8ff; }
+.nav-tab.active { color: #003357; border-bottom: 3px solid #003357; }
+.nav-badge { background: #003357; color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 700; margin-left: 5px; }
+
+/* PAGE SECTIONS */
+.page { display: none; padding: 28px 28px 0; }
+.page.active { display: block; }
+
+/* Cards */
+.card { background: #fff; border: 1px solid #e2e5e9; border-radius: 14px; padding: 22px; margin-bottom: 16px; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; margin-bottom: 14px; }
+
+/* Buttons */
+button { font-family: inherit; font-size: 13px; border-radius: 8px; border: 1px solid #d0d0d0; background: #fff; color: #1d1d1f; padding: 8px 16px; cursor: pointer; transition: all .15s; }
+button:hover:not(:disabled) { background: #f5f5f5; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: #003357; color: #fff; border-color: #003357; font-weight: 600; padding: 10px 26px; font-size: 14px; }
+.btn-primary:hover:not(:disabled) { background: #004a80; border-color: #004a80; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-danger { color: #c00; border-color: #f5c0c0; background: #fff; }
+.btn-danger:hover { background: #fff5f5; }
+.btn-outline { border-color: #003357; color: #003357; background: #fff; }
+.btn-outline:hover { background: #f0f4f8; }
+
+/* Lang checkboxes */
+.lang-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.lang-check { display: flex; align-items: center; gap: 8px; padding: 8px 18px; border: 2px solid #e2e5e9; border-radius: 10px; cursor: pointer; transition: all .15s; user-select: none; }
+.lang-check:hover { border-color: #003357; background: #f5f8ff; }
+.lang-check.checked { border-color: #003357; background: #003357; color: #fff; }
+.lang-check input { display: none; }
+.lang-check-flag { font-size: 18px; }
+.lang-check-label { font-size: 13px; font-weight: 500; }
+
+/* Inputs */
+input[type=text], textarea, select { font-family: inherit; font-size: 13px; width: 100%; border: 1px solid #d8dde3; border-radius: 8px; padding: 9px 12px; background: #fff; color: #1d1d1f; outline: none; transition: border-color .15s; }
+input[type=text]:focus, textarea:focus { border-color: #003357; box-shadow: 0 0 0 3px rgba(0,51,87,.07); }
+textarea { resize: vertical; line-height: 1.5; }
+
+/* Steps (překladač) */
+.steps { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+.step-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #bbb; }
+.step-item.active { color: #003357; font-weight: 700; }
+.step-item.done { color: #18bd13; }
+.step-num { width: 22px; height: 22px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.step-item.active .step-num { background: #003357; }
+.step-item.done .step-num { background: #18bd13; }
+.step-sep { color: #ccc; }
+
+/* Output tabs */
+.out-tabs { display: flex; border-bottom: 2px solid #e8eaed; margin-bottom: 0; }
+.out-tab { padding: 10px 22px; border: none; background: none; font-size: 13px; font-weight: 500; color: #aaa; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 0; transition: all .15s; }
+.out-tab:hover { color: #003357; background: #f5f8ff; }
+.out-tab.active { color: #003357; border-bottom-color: #003357; }
+.output-panel { padding: 20px 0; }
+.output-mockup { border: 1px solid #e2e5e9; border-radius: 10px; overflow: hidden; }
+.output-mockup-bar { background: #f5f7fa; border-bottom: 1px solid #e2e5e9; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+.output-mockup-label { font-size: 11px; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.output-html-area { font-family: monospace; font-size: 11px; width: 100%; min-height: 280px; padding: 14px; background: #1a1d2e; color: #a9b1d6; border: none; resize: vertical; display: block; }
+
+/* ── NÁHLED & CHAT ── */
+.preview-chat-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; padding-top: 20px; }
+@media(max-width:900px){ .preview-chat-layout { grid-template-columns: 1fr; } }
+.preview-frame-wrap { background: #fff; border: 1px solid #e2e5e9; border-radius: 12px; overflow: hidden; }
+.preview-frame-bar { background: #f5f7fa; border-bottom: 1px solid #e2e5e9; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+.preview-frame-label { font-size: 11px; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.preview-iframe { width: 100%; height: 680px; border: none; display: block; }
+
+/* Chat */
+.chat-panel { background: #fff; border: 1px solid #e2e5e9; border-radius: 12px; display: flex; flex-direction: column; position: sticky; top: 70px; max-height: calc(100vh - 100px); }
+.chat-header { padding: 14px 16px; border-bottom: 1px solid #f0f2f4; font-size: 13px; font-weight: 600; color: #003357; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
+.chat-msg { padding: 9px 13px; border-radius: 10px; font-size: 13px; line-height: 1.5; max-width: 100%; }
+.chat-msg.user { background: #003357; color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+.chat-msg.assistant { background: #f0f4f8; color: #1d1d1f; align-self: flex-start; border-bottom-left-radius: 3px; }
+.chat-msg.system { background: #f8f9fb; color: #999; font-size: 12px; text-align: center; align-self: center; font-style: italic; }
+.chat-input-wrap { padding: 12px; border-top: 1px solid #f0f2f4; display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+.chat-input-wrap textarea { font-size: 13px; min-height: 60px; max-height: 140px; resize: none; padding: 8px 11px; border-radius: 8px; flex: 1; }
+.chat-send-btn { background: #003357; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; white-space: nowrap; align-self: flex-end; flex-shrink: 0; }
+.chat-send-btn:hover { background: #004a80; }
+.chat-send-btn:disabled { opacity: .4; cursor: not-allowed; }
+.chat-thinking { display: flex; gap: 4px; align-items: center; padding: 10px 14px; }
+.chat-thinking span { width: 7px; height: 7px; background: #bbb; border-radius: 50%; animation: bounce .9s infinite; }
+.chat-thinking span:nth-child(2){ animation-delay:.15s; }
+.chat-thinking span:nth-child(3){ animation-delay:.3s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.editor-layout { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
+@media(max-width:860px){ .editor-layout { grid-template-columns: 1fr; } }
+
+/* Add panel */
+.add-panel { background: #fff; border: 1px solid #e2e5e9; border-radius: 14px; padding: 22px; position: sticky; top: 70px; }
+.add-panel-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; margin-bottom: 16px; }
+.add-row { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center; margin-bottom: 9px; }
+.add-row .flag { font-size: 17px; }
+.add-name-wrap { margin-bottom: 14px; }
+.add-name-wrap label { font-size: 11px; color: #888; font-weight: 600; display: block; margin-bottom: 5px; }
+.add-previews { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+.add-prev-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.add-prev-item img { width: 80px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0; background: #f5f5f5; }
+.add-prev-item .plbl { font-size: 10px; color: #888; font-weight: 600; }
+.add-prev-item .plbl.cs { color: #003357; }
+
+/* Saved cards */
+.saved-section { display: flex; flex-direction: column; gap: 14px; }
+.saved-header { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; margin-bottom: 4px; }
+.img-card { background: #fff; border: 1px solid #e2e5e9; border-radius: 14px; overflow: hidden; }
+.img-card-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; }
+.img-card-name { font-size: 14px; font-weight: 600; }
+.img-card-btns { display: flex; gap: 8px; }
+
+/* Preview strip */
+.preview-strip { display: flex; overflow-x: auto; border-top: 1px solid #f0f2f4; scrollbar-width: thin; }
+.prev-cell { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; padding: 12px 10px 10px; border-right: 1px solid #f0f2f4; min-width: 120px; }
+.prev-cell:last-child { border-right: none; }
+.prev-cell img { width: 100px; height: 62px; object-fit: cover; border-radius: 6px; border: 1px solid #e4e6e9; background: #f5f5f7; margin-bottom: 7px; }
+.prev-cell .cell-flag { font-size: 14px; margin-bottom: 1px; }
+.prev-cell .cell-code { font-size: 10px; font-weight: 700; color: #aaa; margin-bottom: 5px; }
+.prev-cell .cell-code.cs { color: #003357; }
+.prev-cell .cell-status { font-size: 10px; color: #18bd13; }
+.prev-cell .cell-status.missing { color: #f0a000; font-style: italic; }
+
+/* Edit section inside card */
+.img-card-edit { background: #fafbfc; border-top: 1px solid #f0f2f4; padding: 16px 18px; display: none; }
+.img-card-edit.open { display: block; }
+.edit-row { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; }
+.edit-row .flag { font-size: 15px; }
+
+/* Empty state */
+.empty-state { background: #fff; border: 2px dashed #dde2e8; border-radius: 14px; padding: 48px; text-align: center; color: #bbb; font-size: 14px; }
+
+/* Settings page */
+.settings-section { max-width: 700px; }
+.settings-row { margin-bottom: 24px; }
+.settings-label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; display: block; }
+.settings-hint { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
+.api-input-wrap { display: flex; gap: 8px; align-items: center; }
+.api-input-wrap input { font-family: monospace; font-size: 13px; }
+.api-status { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; margin-top: 8px; }
+.api-status.ok   { color: #18bd13; }
+.api-status.warn { color: #f0a000; }
+
+/* Loading */
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 300; gap: 16px; }
+.spinner { width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #003357; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: #666; }
+
+/* Toast */
+.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #1d1d1f; color: #fff; font-size: 13px; padding: 10px 22px; border-radius: 24px; z-index: 999; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar-right { margin-left: auto; display: flex; gap: 8px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<div class="nav">
+  <div class="nav-brand">Překladač <span>Továrna na čas · LAVVU</span></div>
+  <button class="nav-tab active" onclick="showPage('translator')">📝 Překladač</button>
+  <button class="nav-tab" onclick="showPage('imgEditor')">🖼 Editor obrázků <span class="nav-badge" id="img-badge">0</span></button>
+  <button class="nav-tab" onclick="showPage('settings')">⚙ Nastavení</button>
+</div>
+
+<div class="app">
+
+<!-- ══════════════════════════════════════
+     STRÁNKA 1: PŘEKLADAČ
+══════════════════════════════════════ -->
+<div class="page active" id="page-translator">
+
+  <div class="steps" style="margin-top:8px">
+    <div class="step-item active" id="si1"><div class="step-num">1</div> Vstup</div>
+    <div class="step-sep">›</div>
+    <div class="step-item" id="si2"><div class="step-num">2</div> Náhled & opravy</div>
+    <div class="step-sep">›</div>
+    <div class="step-item" id="si3"><div class="step-num">3</div> Výstupy</div>
+  </div>
+
+  <!-- Krok 1 -->
+  <div id="step1">
+    <div class="card">
+      <div class="card-title">HTML kód newsletteru (česká verze z Mailchimpu)</div>
+      <textarea id="html-input" style="min-height:220px;font-family:monospace;font-size:12px" placeholder="Vložte HTML kód z Mailchimpu..."></textarea>
+    </div>
+    <div class="card">
+      <div class="card-title">Jazykové verze k přeložení</div>
+      <div class="lang-grid">
+        <label class="lang-check" onclick="toggleLang(this)"><input type="checkbox" value="sk"><span class="lang-check-flag">🇸🇰</span><span class="lang-check-label">Slovenština</span></label>
+        <label class="lang-check" onclick="toggleLang(this)"><input type="checkbox" value="pl"><span class="lang-check-flag">🇵🇱</span><span class="lang-check-label">Polština</span></label>
+        <label class="lang-check" onclick="toggleLang(this)"><input type="checkbox" value="de"><span class="lang-check-flag">🇩🇪</span><span class="lang-check-label">Němčina</span></label>
+        <label class="lang-check" onclick="toggleLang(this)"><input type="checkbox" value="hu"><span class="lang-check-flag">🇭🇺</span><span class="lang-check-label">Maďarština</span></label>
+        <label class="lang-check" onclick="toggleLang(this)"><input type="checkbox" value="sl"><span class="lang-check-flag">🇸🇮</span><span class="lang-check-label">Slovinština</span></label>
+      </div>
+    </div>
+    <button class="btn-primary" style="width:100%" onclick="startGenerate()">Generovat překlady →</button>
+  </div>
+
+  <!-- Krok 2: Náhled & opravy -->
+  <div id="step2" class="hidden">
+    <div class="toolbar">
+      <button onclick="goToStep1()">← Zpět</button>
+      <span id="step2-langs" style="font-size:13px;color:#666"></span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn-primary" onclick="goToStep3()">Potvrdit a exportovat →</button>
+      </div>
+    </div>
+
+    <!-- Lang tabs -->
+    <div class="out-tabs" id="preview-tabs"></div>
+
+    <!-- Preview + chat layout -->
+    <div id="preview-panels"></div>
+  </div>
+
+  <!-- Krok 3: Výstupy -->
+  <div id="step3" class="hidden">
+    <div class="toolbar">
+      <button onclick="goToStep2()">← Zpět na náhledy</button>
+      <span id="step3-langs" style="font-size:13px;color:#666"></span>
+    </div>
+    <div class="out-tabs" id="out-tabs"></div>
+    <div id="out-panels"></div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     STRÁNKA 2: EDITOR OBRÁZKŮ
+══════════════════════════════════════ -->
+<div class="page" id="page-imgEditor">
+
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;margin-top:8px">
+    <div>
+      <h2 style="font-size:18px;font-weight:700;color:#003357">Editor obrázků</h2>
+      <p style="font-size:12px;color:#999;margin-top:3px">Obrázky, které se mění s každým newsletterem. Zadejte CS URL a URL pro každý jazyk.</p>
+    </div>
+  </div>
+
+  <div class="editor-layout">
+
+    <!-- Levý sloupec: přidat -->
+    <div class="add-panel">
+      <div class="add-panel-title">Přidat nový obrázek</div>
+
+      <div class="add-name-wrap">
+        <label>Název / popis</label>
+        <input type="text" id="add-label" placeholder="např. Černá lišta header">
+      </div>
+
+      <div id="add-rows"><!-- JS --></div>
+      <div class="add-previews" id="add-previews"></div>
+      <button class="btn-primary" style="width:100%;padding:10px" onclick="saveNewImg()">Uložit obrázek</button>
+    </div>
+
+    <!-- Pravý sloupec: uložené -->
+    <div>
+      <div class="saved-header" id="saved-header"></div>
+      <div class="saved-section" id="saved-section"><!-- JS --></div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Generuji překlady...</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     STRÁNKA 3: NASTAVENÍ
+══════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div style="margin-bottom:24px;margin-top:8px">
+    <h2 style="font-size:18px;font-weight:700;color:#003357">Nastavení</h2>
+    <p style="font-size:12px;color:#999;margin-top:3px">Konfigurace překladače</p>
+  </div>
+
+  <div class="settings-section">
+    <div class="card">
+      <div class="card-title">Claude API</div>
+      <div class="settings-row">
+        <label class="settings-label">API klíč</label>
+        <div class="api-input-wrap" style="max-width:600px">
+          <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off">
+          <button class="btn-sm btn-outline" onclick="toggleApiKeyVisibility()" style="white-space:nowrap">👁</button>
+          <button class="btn-sm btn-primary" onclick="saveApiKey()" style="white-space:nowrap">Uložit</button>
+        </div>
+        <div class="api-status" id="api-status"></div>
+        <div style="margin-top:10px">
+          <button class="btn-sm btn-outline" id="btn-test-api" onclick="testApiKey()">🔌 Otestovat připojení</button>
+        </div>
+        <div class="settings-hint">
+          API klíč najdete na <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#003357">console.anthropic.com</a>.<br>
+          Klíč se ukládá pouze lokálně ve vašem prohlížeči a nikam se neodesílá.<br><br>
+          <strong>Pokud test selže s CORS chybou:</strong> Otevřete terminál, přejděte do složky s tímto souborem a spusťte:<br>
+          <code style="background:#f0f0f0;padding:3px 7px;border-radius:4px;font-size:12px">python3 -m http.server 8080</code><br>
+          Pak otevřete <a href="http://localhost:8080/prekladac-newsletteru.html" target="_blank" style="color:#003357">http://localhost:8080/prekladac-newsletteru.html</a>
+        </div>
+      </div>
+      <div class="settings-row" style="margin-bottom:0">
+        <label class="settings-label">Model</label>
+        <div style="font-size:13px;padding:9px 12px;background:#f8f9fb;border:1px solid #e2e5e9;border-radius:8px;color:#555">
+          claude-sonnet-4-5
+        </div>
+        <div class="settings-hint">Překlady jsou generovány pomocí tohoto modelu.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Záloha dat</div>
+      <p style="font-size:13px;color:#555;margin-bottom:18px;line-height:1.6">
+        Exportujte nastavení obrázků do JSON souboru a sdílejte ho s kolegyněmi, nebo přeneste na jiný počítač. API klíč se do zálohy <strong>neukládá</strong> — každý si ho zadá sám.
+      </p>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <button class="btn-outline" onclick="exportBackup()" style="display:flex;align-items:center;gap:7px;padding:10px 20px;font-size:13px;font-weight:500">
+          <span style="font-size:16px">⬇</span> Exportovat zálohu (.json)
+        </button>
+
+        <div style="position:relative">
+          <button class="btn-outline" onclick="document.getElementById('import-file').click()" style="display:flex;align-items:center;gap:7px;padding:10px 20px;font-size:13px;font-weight:500">
+            <span style="font-size:16px">⬆</span> Importovat zálohu (.json)
+          </button>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(this)">
+        </div>
+      </div>
+
+      <div id="backup-status" style="margin-top:12px;font-size:12px;display:none"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════
+const LANGUAGES = [
+  { code:"sk", label:"Slovenština", flag:"🇸🇰" },
+  { code:"pl", label:"Polština",    flag:"🇵🇱" },
+  { code:"de", label:"Němčina",     flag:"🇩🇪" },
+  { code:"hu", label:"Maďarština",  flag:"🇭🇺" },
+  { code:"sl", label:"Slovinština", flag:"🇸🇮" },
+];
+const ALL_LANGS = [{code:"cs",label:"CS (výchozí)",flag:"🇨🇿"}, ...LANGUAGES];
+
+const FIXED_TRANS = {
+  contact_heading:{ sk:"- Buďte s nami v kontakte -", pl:"- Bądź z nami w kontakcie -", de:"- Bleiben Sie mit uns in Kontakt -", hu:"- Legyenek velünk kapcsolatban -", sl:"- Ostanite z nami v stiku -" },
+  nav:{ sk:["NOVINKY","ZLATO","STRIEBRO","HODINKY","HODINY","BUDÍKY","STROJČEKY","REMIENKY"], pl:["NOWOŚCI","ZŁOTO","SREBRO","ZEGARKI","ZEGARY","BUDZIKI","MECHANIZMY","PASKI"], de:["NEUIGKEITEN","GOLD","SILBER","ARMBANDUHREN","WANDUHREN","WECKER","UHRWERKE","BÄNDER"], hu:["ÚJDONSÁGOK","ARANY","EZÜST","KARÓRÁK","FALIÓRA","ÉBRESZTŐK","SZERKEZETEK","SZÍJAK"], sl:["NOVOSTI","ZLATO","SREBRO","URE","STENSKE URE","BUDILKE","MEHANIZMI","PAŠČKI"] },
+  eshop_label:{ sk:"VEĽKOOBCHODNÝ E-SHOP", pl:"HURTOWY SKLEP INTERNETOWY", de:"GROSSHANDELS-ONLINESHOP", hu:"NAGYKERESKEDELMI WEBÁRUHÁZ", sl:"VELEPRODAJNA SPLETNA TRGOVINA" },
+  login_button:{ sk:"PRIHLÁSIŤ SA ►", pl:"ZALOGUJ SIĘ ►", de:"ANMELDEN ►", hu:"BEJELENTKEZÉS ►", sl:"PRIJAVITE SE ►" },
+};
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let state = { html:"", selectedLangs:[], outputs:{}, fixImgs:[], activeOutputLang:null, apiKey:"" };
+try { state.fixImgs = JSON.parse(localStorage.getItem("fixImgs")||"[]"); } catch{}
+try { state.apiKey  = localStorage.getItem("apiKey")||""; } catch{}
+
+function persist() {
+  try { localStorage.setItem("fixImgs", JSON.stringify(state.fixImgs)); } catch{}
+}
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+function show(id)  { document.getElementById(id).classList.remove("hidden"); }
+function hide(id)  { document.getElementById(id).classList.add("hidden"); }
+function esc(s)    { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
+
+function updateBadges() {
+  document.getElementById("img-badge").textContent = state.fixImgs.length;
+}
+
+// ══════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById("page-"+name).classList.add("active");
+  const tabs = document.querySelectorAll(".nav-tab");
+  if (name==="translator") tabs[0].classList.add("active");
+  if (name==="imgEditor")  { tabs[1].classList.add("active"); renderSaved(); }
+  if (name==="settings")   { tabs[2].classList.add("active"); initSettingsPage(); }
+}
+
+// ══════════════════════════════════════════
+// TRANSLATOR — STEP NAV
+// ══════════════════════════════════════════
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const el=document.getElementById("si"+i);
+    el.className="step-item"+(i===n?" active":i<n?" done":"");
+  });
+}
+function goToStep1() { hide("step2"); hide("step3"); show("step1"); setStep(1); }
+function goToStep2() { hide("step1"); hide("step3"); show("step2"); setStep(2); }
+function goToStep3() {
+  hide("step2"); show("step3"); setStep(3);
+  renderOutputs();
+  const langs = state.selectedLangs;
+  document.getElementById("step3-langs").textContent = langs.map(l=>LANGUAGES.find(x=>x.code===l)?.flag+" "+LANGUAGES.find(x=>x.code===l)?.label).join(", ");
+}
+function toggleLang(label) { const cb=label.querySelector("input"); cb.checked=!cb.checked; label.classList.toggle("checked",cb.checked); }
+function getSelectedLangs() { return Array.from(document.querySelectorAll(".lang-check input:checked")).map(i=>i.value); }
+
+// ══════════════════════════════════════════
+// GENERATE
+// ══════════════════════════════════════════
+async function startGenerate() {
+  const html=document.getElementById("html-input").value.trim();
+  if (!html) { alert("Nejprve vložte HTML kód."); return; }
+  const langs=getSelectedLangs();
+  if (!langs.length) { alert("Vyberte alespoň jeden jazyk."); return; }
+  if (!state.apiKey) { alert("Nejprve zadejte Claude API klíč v Nastavení."); showPage("settings"); return; }
+  state.html=html; state.selectedLangs=langs; state.outputs={};
+  show("loading-overlay"); hide("step1");
+  try {
+    for (let i=0;i<langs.length;i++) {
+      const lang=langs[i], lObj=LANGUAGES.find(l=>l.code===lang);
+      document.getElementById("loading-text").textContent=`Překládám ${lObj.flag} ${lObj.label}… (${i+1}/${langs.length})`;
+      const blocks=extractTextBlocks(html);
+      const translated=await translateWithClaude(blocks,lang);
+      state.outputs[lang]={html:applyAll(html,translated,lang), blocks:translated};
+    }
+    hide("loading-overlay"); renderPreviews(); hide("step1"); show("step2"); setStep(2);
+    document.getElementById("step2-langs").textContent=langs.map(l=>LANGUAGES.find(x=>x.code===l)?.flag+" "+LANGUAGES.find(x=>x.code===l)?.label).join(", ");
+  } catch(e) { hide("loading-overlay"); show("step1"); alert("Chyba při překladu: "+e.message); }
+}
+
+// ══════════════════════════════════════════
+// TEXT EXTRACTION
+// ══════════════════════════════════════════
+function extractTextBlocks(html) {
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  const blocks=[]; let id=0;
+  const navLinks=["NOVINKY","ZLATO","STŘÍBRO","HODINKY","HODINY","BUDÍKY","STROJKY","ŘEMÍNKY"];
+  const SKIP=[/Copyright/i,/UNSUBSCRIBE/i,/All rights reserved/i,/list-manage\.com/,/mailchimp/i,/vcard/i,/address book/i,/legií/i,/Nové Město/i,/Czech Republic/i,/^\s*Email\s*$/i,/^\s*E-shop\s*$/i];
+  const isContact=el=>{ const t=(el.closest("td")||{}).textContent||""; return t.includes("Továrna na čas")||t.includes("LAVVU.STORE")||t.includes("+420")||t.includes("WhatsApp")||t.includes("werktags")||t.includes("robocze")||t.includes("všední"); };
+  const isFooter=el=>!!el.closest("#templateFooter,.mcnFollowBlock");
+  doc.querySelectorAll(".mcnTextContent,.mcnButtonContent a,.mcnPreviewText").forEach(el=>{
+    if (isFooter(el)||isContact(el)) return;
+    const t=(el.innerText||el.textContent||"").trim(); if (!t) return;
+    if (SKIP.some(p=>p.test(t))) return;
+    if (navLinks.some(n=>t.includes(n)))                               {blocks.push({id:id++,type:"nav",original:t,translated:""}); return;}
+    if (t.includes("Buďte s námi v kontaktu"))                         {blocks.push({id:id++,type:"contact_heading",original:t,translated:""}); return;}
+    if (t.includes("VELKOOBCHODNÍ")&&t.includes("E-SHOP"))             {blocks.push({id:id++,type:"eshop_label",original:t,translated:""}); return;}
+    if (t.includes("TOVARNANACAS.STORE")||(t.includes("LAVVU.STORE")&&!t.includes("+420"))){blocks.push({id:id++,type:"eshop_url",original:t,translated:""}); return;}
+    if (t.includes("PŘIHLÁSIT SE")||t.includes("PRIHLÁSIT"))           {blocks.push({id:id++,type:"login",original:t,translated:""}); return;}
+    if (el.tagName==="A"&&el.closest(".mcnButtonContent"))             {blocks.push({id:id++,type:"button_other",original:t,translated:""}); return;}
+    blocks.push({id:id++,type:"text",original:t,translated:""});
+  });
+  return blocks;
+}
+
+// ══════════════════════════════════════════
+// CLAUDE
+// ══════════════════════════════════════════
+async function translateWithClaude(blocks,lang) {
+  const langLabel=LANGUAGES.find(l=>l.code===lang)?.label||lang;
+  let toTrans=blocks.filter(b=>["text","button_other"].includes(b.type));
+  const navBlock=blocks.find(b=>b.type==="nav");
+  if (navBlock&&!FIXED_TRANS.nav[lang]) toTrans.push(navBlock);
+  if (toTrans.length>0) {
+    const prompt=`Jsi odborný překladatel newsletterů pro velkoobchodní zákazníky (hodináře a zlatníky). Překládej do: ${langLabel}.\nPRAVIDLA: vykání, odborná terminologie, číselné údaje a jednotky NEMĚNIT, CAPS zachovat, co nejkratší.\nVrať POUZE JSON: [{"id":číslo,"translated":"text"}]\nTexty: ${JSON.stringify(toTrans.map(b=>({id:b.id,original:b.original})))}`;
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":state.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:4000,messages:[{role:"user",content:prompt}]})
+    });
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.error?.message||"API chyba: "+resp.status); }
+    const data=await resp.json();
+    const text=(data.content||[]).map(c=>c.text||"").join("");
+    const clean=text.replace(/```json|```/g,"").trim();
+    let trans=[]; try{trans=JSON.parse(clean);}catch{const m=clean.match(/\[[\s\S]*\]/);if(m)try{trans=JSON.parse(m[0]);}catch{}}
+    const map={}; trans.forEach(t=>{map[t.id]=t.translated;});
+    blocks=blocks.map(b=>map[b.id]!==undefined?{...b,translated:map[b.id]}:b);
+  }
+  return applyFixed(blocks,lang);
+}
+
+function applyFixed(blocks,lang) {
+  return blocks.map(b=>{
+    if (b.type==="nav")             return {...b,translated:FIXED_TRANS.nav[lang]?.join(" · ")||b.translated||b.original};
+    if (b.type==="contact_heading") return {...b,translated:FIXED_TRANS.contact_heading[lang]||b.original};
+    if (b.type==="eshop_label")     return {...b,translated:FIXED_TRANS.eshop_label[lang]||b.original};
+    if (b.type==="eshop_url")       return {...b,translated:["cs","sk"].includes(lang)?"WWW.TOVARNANACAS.STORE":"WWW.LAVVU.STORE"};
+    if (b.type==="login")           return {...b,translated:FIXED_TRANS.login_button[lang]||b.original};
+    return b;
+  });
+}
+
+// ══════════════════════════════════════════
+// APPLY ALL
+// ══════════════════════════════════════════
+function applyAll(html,blocks,lang) {
+  let out=html;
+  const isCsSk=["cs","sk"].includes(lang);
+
+  // Cílové domény
+  const targetStore = isCsSk ? "www.tovarnanacas.store" : "www.lavvu.store";
+  const targetDomainText = isCsSk ? "WWW.TOVARNANACAS.STORE" : "WWW.LAVVU.STORE";
+
+  // Nahraď VŠECHNY odchozí href/src/action odkazy na obě domény → správnou cílovou doménu
+  // 1. tovarnanacas.store → správná doména
+  out = out.replace(/https?:\/\/(www\.)?tovarnanacas\.store/gi, `https://${targetStore}`);
+  // 2. lavvu.store → správná doména (pro případ SK verze kde má být tovarnanacas)
+  out = out.replace(/https?:\/\/(www\.)?lavvu\.store/gi, `https://${targetStore}`);
+  // 3. Textové zmínky domény (viditelný text v HTML)
+  out = out.replace(/WWW\.TOVARNANACAS\.STORE/gi, targetDomainText);
+  out = out.replace(/WWW\.LAVVU\.STORE/gi, targetDomainText);
+  out = out.replace(/www\.tovarnanacas\.store/gi, targetStore);
+  out = out.replace(/www\.lavvu\.store/gi, targetStore);
+  // Fixní obrázky
+  state.fixImgs.forEach(fi=>{
+    if (!fi.cs) return;
+    const langUrl=fi[lang]; if (!langUrl||langUrl===fi.cs) return;
+    const e=fi.cs.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    out=out.replace(new RegExp(e,"g"),langUrl);
+  });
+  const navCS=["NOVINKY","ZLATO","STŘÍBRO","HODINKY","HODINY","BUDÍKY","STROJKY","ŘEMÍNKY"];
+  const navT=FIXED_TRANS.nav[lang];
+  if (navT) navCS.forEach((w,i)=>{if(navT[i]) out=out.replace(new RegExp(`>\\s*${w}\\s*<`,"g"),`>${navT[i]}<`);});
+  const ch=FIXED_TRANS.contact_heading[lang]; if (ch) out=out.replace(/Buďte s námi v kontaktu/g,ch.replace(/^- | -$/g,"").trim());
+  const el=FIXED_TRANS.eshop_label[lang]; if (el){out=out.replace(/VELKOOBCHODNÍ\s*E-?SHOP/gi,el);out=out.replace(/VELKOOBCHODNÍM\s*E-?SHOPU/gi,el);}
+  const lb=FIXED_TRANS.login_button[lang]; if (lb){out=out.replace(/PŘIHLÁSIT SE ►/g,lb);out=out.replace(/PŘIHLÁSIT SE &amp;#9658;/g,lb);}
+  if (!isCsSk){out=out.replace(/(color\s*:\s*)#18[Bb][Dd]13/g,"$1#003357");out=out.replace(/color="#18[Bb][Dd]13"/g,'color="#003357"');out=out.replace(/(background-color\s*:\s*)#18BD13/gi,"$1#003357");out=out.replace(/background-color="#18BD13"/gi,'background-color="#003357"');}
+  blocks.forEach(b=>{
+    if (!b.translated||b.translated===b.original) return;
+    if (["nav","contact_heading","eshop_label","eshop_url","login"].includes(b.type)) return;
+    try{const e=b.original.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");out=out.replace(new RegExp(e,"g"),b.translated);}catch{}
+  });
+  return out;
+}
+
+// ══════════════════════════════════════════
+// PREVIEW + CHAT (krok 2)
+// ══════════════════════════════════════════
+let chatHistories = {}; // lang → [{role, content}]
+
+function renderPreviews() {
+  const tabs = document.getElementById("preview-tabs"); tabs.innerHTML = "";
+  const panels = document.getElementById("preview-panels"); panels.innerHTML = "";
+  chatHistories = {};
+
+  state.selectedLangs.forEach((lang, i) => {
+    const lObj = LANGUAGES.find(l=>l.code===lang);
+    chatHistories[lang] = [];
+
+    // Tab
+    const tab = document.createElement("button");
+    tab.className = "out-tab"+(i===0?" active":"");
+    tab.id = "ptab-"+lang;
+    tab.innerHTML = `${lObj.flag} ${lObj.label}`;
+    tab.onclick = () => switchPreviewTab(lang);
+    tabs.appendChild(tab);
+
+    // Panel
+    const panel = document.createElement("div");
+    panel.className = "preview-chat-layout"+(i!==0?" hidden":"");
+    panel.id = "ppanel-"+lang;
+
+    // Iframe preview
+    const frameWrap = document.createElement("div");
+    frameWrap.className = "preview-frame-wrap";
+    frameWrap.innerHTML = `
+      <div class="preview-frame-bar">
+        <span class="preview-frame-label">${lObj.flag} ${lObj.label} — náhled</span>
+      </div>`;
+    const iframe = document.createElement("iframe");
+    iframe.className = "preview-iframe";
+    iframe.id = "iframe-"+lang;
+    frameWrap.appendChild(iframe);
+    panel.appendChild(frameWrap);
+
+    // Chat
+    const chat = document.createElement("div");
+    chat.className = "chat-panel";
+    chat.innerHTML = `
+      <div class="chat-header">💬 Opravy překladu <span style="font-size:11px;color:#aaa;font-weight:400;margin-left:4px">${lObj.flag} ${lObj.label}</span></div>
+      <div class="chat-messages" id="chat-msgs-${lang}">
+        <div class="chat-msg system">Napište, co chcete v překladu opravit. Claude provede změny a aktualizuje náhled.</div>
+      </div>
+      <div class="chat-input-wrap">
+        <textarea id="chat-input-${lang}" placeholder="Např: Přeložte 'Řemínky' jako 'Náramky'…" onkeydown="chatKeydown(event,'${lang}')"></textarea>
+        <button class="chat-send-btn" id="chat-btn-${lang}" onclick="sendChat('${lang}')">Odeslat</button>
+      </div>`;
+    panel.appendChild(chat);
+    panels.appendChild(panel);
+
+    // Load iframe
+    setTimeout(() => loadIframe(lang), 50);
+  });
+}
+
+function loadIframe(lang) {
+  const iframe = document.getElementById("iframe-"+lang);
+  if (!iframe) return;
+  const html = state.outputs[lang]?.html || "";
+  // srcdoc funguje všude bez CORS omezení (blob: URL může být blokováno na GitHub Pages)
+  iframe.srcdoc = html;
+}
+
+function switchPreviewTab(lang) {
+  state.selectedLangs.forEach(l => {
+    document.getElementById("ptab-"+l)?.classList.toggle("active", l===lang);
+    document.getElementById("ppanel-"+l)?.classList.toggle("hidden", l!==lang);
+  });
+}
+
+function chatKeydown(e, lang) {
+  if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendChat(lang); }
+}
+
+function addChatMsg(lang, role, text) {
+  const container = document.getElementById("chat-msgs-"+lang);
+  if (!container) return;
+  // Remove thinking indicator if present
+  const thinking = container.querySelector(".chat-thinking");
+  if (thinking) thinking.remove();
+  const div = document.createElement("div");
+  div.className = "chat-msg "+role;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function addThinking(lang) {
+  const container = document.getElementById("chat-msgs-"+lang);
+  if (!container) return;
+  const div = document.createElement("div");
+  div.className = "chat-thinking";
+  div.innerHTML = "<span></span><span></span><span></span>";
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChat(lang) {
+  const inp = document.getElementById("chat-input-"+lang);
+  const btn = document.getElementById("chat-btn-"+lang);
+  const msg = inp?.value.trim();
+  if (!msg) return;
+  inp.value = "";
+  btn.disabled = true;
+
+  addChatMsg(lang, "user", msg);
+  addThinking(lang);
+
+  const lObj = LANGUAGES.find(l=>l.code===lang);
+  const currentHtml = state.outputs[lang]?.html || "";
+  const currentBlocks = state.outputs[lang]?.blocks || [];
+
+  // Build conversation history
+  if (!chatHistories[lang]) chatHistories[lang] = [];
+
+  const systemPrompt = `Jsi odborný překladatel newsletterů pro velkoobchodní zákazníky (hodináře a zlatníky). Překládáš do jazyka: ${lObj.label}.
+Uživatel ti pošle požadavek na opravu překladu. Proveď opravy v přeloženém HTML a vrať POUZE opravené HTML bez jakéhokoliv komentáře nebo vysvětlení — jen samotný HTML kód.
+Zachovej veškeré HTML tagy, atributy a strukturu beze změny. Měň pouze textový obsah dle pokynů.`;
+
+  chatHistories[lang].push({ role:"user", content: `Aktuální přeložené HTML:\n\`\`\`html\n${currentHtml}\n\`\`\`\n\nPožadavek na opravu: ${msg}` });
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": state.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 8000,
+        system: systemPrompt,
+        messages: chatHistories[lang]
+      })
+    });
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.error?.message||resp.status); }
+    const data = await resp.json();
+    const reply = (data.content||[]).map(c=>c.text||"").join("").trim();
+
+    // Extract HTML from reply
+    let newHtml = reply;
+    const htmlMatch = reply.match(/```html\s*([\s\S]*?)```/i) || reply.match(/```\s*([\s\S]*?)```/);
+    if (htmlMatch) newHtml = htmlMatch[1].trim();
+    // If reply contains full HTML doc
+    if (!newHtml.includes("<html") && !newHtml.includes("<!DOCTYPE") && reply.includes("<html")) newHtml = reply;
+
+    // Save assistant reply (summary, not full HTML)
+    chatHistories[lang].push({ role:"assistant", content: "Opraveno dle vašeho požadavku." });
+
+    // Update state
+    state.outputs[lang].html = newHtml;
+
+    // Refresh iframe
+    loadIframe(lang);
+
+    // Remove thinking, add confirmation
+    const container = document.getElementById("chat-msgs-"+lang);
+    const thinking = container?.querySelector(".chat-thinking");
+    if (thinking) thinking.remove();
+    addChatMsg(lang, "assistant", "✓ Hotovo — náhled byl aktualizován.");
+
+  } catch(e) {
+    const container = document.getElementById("chat-msgs-"+lang);
+    const thinking = container?.querySelector(".chat-thinking");
+    if (thinking) thinking.remove();
+    addChatMsg(lang, "assistant", "⚠ Chyba: "+e.message);
+  }
+
+  btn.disabled = false;
+  inp?.focus();
+}
+
+// ══════════════════════════════════════════
+// OUTPUT RENDER (krok 3)
+// ══════════════════════════════════════════
+function renderOutputs() {
+  const tabs=document.getElementById("out-tabs"); tabs.innerHTML="";
+  const panels=document.getElementById("out-panels"); panels.innerHTML="";
+  state.selectedLangs.forEach((lang,i)=>{
+    const lObj=LANGUAGES.find(l=>l.code===lang);
+    const tab=document.createElement("button"); tab.className="out-tab"+(i===0?" active":""); tab.id="tab-"+lang;
+    tab.innerHTML=`${lObj.flag} ${lObj.label}`; tab.onclick=()=>switchOutputTab(lang); tabs.appendChild(tab);
+    const panel=document.createElement("div"); panel.className="output-panel"+(i!==0?" hidden":""); panel.id="panel-"+lang;
+    panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span style="font-size:24px">${lObj.flag}</span><span style="font-size:16px;font-weight:700;color:#003357">${lObj.label}</span></div>
+      <div class="output-mockup"><div class="output-mockup-bar"><span class="output-mockup-label">HTML výstup</span><div style="display:flex;gap:8px"><button class="btn-sm" onclick="copyLangHtml('${lang}')">⎘ Kopírovat HTML</button></div></div>
+      <textarea class="output-html-area" id="html-${lang}" readonly>${esc(state.outputs[lang]?.html||"")}</textarea></div>`;
+    panels.appendChild(panel);
+  });
+  state.activeOutputLang=state.selectedLangs[0];
+}
+function switchOutputTab(lang) {
+  state.selectedLangs.forEach(l=>{document.getElementById("tab-"+l)?.classList.toggle("active",l===lang);document.getElementById("panel-"+l)?.classList.toggle("hidden",l!==lang);});
+}
+function copyLangHtml(lang) {
+  navigator.clipboard.writeText(state.outputs[lang]?.html||"").then(()=>{
+    const btn=document.querySelector(`#panel-${lang} .btn-sm`); if(btn){const o=btn.textContent;btn.textContent="✓ Zkopírováno!";setTimeout(()=>btn.textContent=o,2000);}
+  });
+}
+
+// ══════════════════════════════════════════
+// IMAGE EDITOR
+// ══════════════════════════════════════════
+function buildAddRows() {
+  const container=document.getElementById("add-rows"); container.innerHTML="";
+  ALL_LANGS.forEach(l=>{
+    const row=document.createElement("div"); row.className="add-row";
+    row.innerHTML=`<span class="flag">${l.flag}</span>`;
+    const inp=document.createElement("input"); inp.type="text"; inp.id="add-"+l.code;
+    inp.placeholder=l.code==="cs"?"Výchozí URL (česká verze)":"URL pro "+l.label;
+    inp.oninput=updateAddPreviews;
+    row.appendChild(inp); container.appendChild(row);
+  });
+}
+
+function updateAddPreviews() {
+  const container=document.getElementById("add-previews"); container.innerHTML="";
+  ALL_LANGS.forEach(l=>{
+    const url=(document.getElementById("add-"+l.code)?.value||"").trim(); if(!url) return;
+    const item=document.createElement("div"); item.className="add-prev-item";
+    const img=document.createElement("img"); img.src=url;
+    const BLANK="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='52'><rect width='80' height='52' fill='%23f5f5f5' rx='4'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-size='8' fill='%23ccc'>chyba</text></svg>";
+    img.onerror=()=>img.src=BLANK;
+    const lbl=document.createElement("div"); lbl.className="plbl"+(l.code==="cs"?" cs":""); lbl.textContent=l.flag+" "+l.code.toUpperCase();
+    item.appendChild(img); item.appendChild(lbl); container.appendChild(item);
+  });
+}
+
+function saveNewImg() {
+  const csUrl=(document.getElementById("add-cs")?.value||"").trim();
+  if (!csUrl){alert("Zadejte výchozí URL (CS verze)."); return;}
+  const label=(document.getElementById("add-label")?.value||"").trim()||"Obrázek";
+  const fi={id:uid(),label,cs:csUrl};
+  LANGUAGES.forEach(l=>{fi[l.code]=(document.getElementById("add-"+l.code)?.value||"").trim();});
+  state.fixImgs.push(fi); persist(); updateBadges();
+  document.getElementById("add-label").value="";
+  ALL_LANGS.forEach(l=>{const el=document.getElementById("add-"+l.code);if(el)el.value="";});
+  document.getElementById("add-previews").innerHTML="";
+  renderSaved(); toast("✓ Obrázek uložen");
+}
+
+function renderSaved() {
+  const container=document.getElementById("saved-section");
+  const header=document.getElementById("saved-header");
+  container.innerHTML="";
+  header.textContent=state.fixImgs.length?state.fixImgs.length+" uložených obrázků":"";
+
+  if (!state.fixImgs.length) {
+    container.innerHTML=`<div class="empty-state">Zatím žádné uložené obrázky.<br>Přidejte první pomocí formuláře vlevo.</div>`;
+    return;
+  }
+
+  const BLANK_CELL="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='62'><rect width='100' height='62' fill='%23f8f8f8' rx='4'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-size='9' fill='%23ccc'>—</text></svg>";
+
+  state.fixImgs.forEach((fi,idx)=>{
+    const card=document.createElement("div"); card.className="img-card";
+
+    // Top bar
+    const top=document.createElement("div"); top.className="img-card-top";
+    const name=document.createElement("div"); name.className="img-card-name"; name.textContent=fi.label||"Obrázek "+(idx+1);
+    const btns=document.createElement("div"); btns.className="img-card-btns";
+    const editBtn=document.createElement("button"); editBtn.className="btn-sm"; editBtn.textContent="✏ Upravit";
+    editBtn.onclick=()=>toggleCardEdit(fi.id, editBtn);
+    const delBtn=document.createElement("button"); delBtn.className="btn-danger btn-sm"; delBtn.textContent="✕ Odebrat";
+    delBtn.onclick=()=>{if(confirm("Odebrat tento obrázek?")){state.fixImgs.splice(idx,1);persist();updateBadges();renderSaved();toast("Obrázek odebrán");}};
+    btns.appendChild(editBtn); btns.appendChild(delBtn);
+    top.appendChild(name); top.appendChild(btns); card.appendChild(top);
+
+    // Preview strip
+    const strip=document.createElement("div"); strip.className="preview-strip";
+    ALL_LANGS.forEach(l=>{
+      const url=fi[l.code]||"";
+      const cell=document.createElement("div"); cell.className="prev-cell";
+      const img=document.createElement("img"); img.id=`pv-${fi.id}-${l.code}`; img.src=url||BLANK_CELL;
+      if (url) img.onerror=()=>img.src=BLANK_CELL;
+      const flag=document.createElement("div"); flag.className="cell-flag"; flag.textContent=l.flag;
+      const code=document.createElement("div"); code.className="cell-code"+(l.code==="cs"?" cs":""); code.textContent=l.code.toUpperCase();
+      const status=document.createElement("div"); status.id=`st-${fi.id}-${l.code}`;
+      if (!url){status.className="cell-status missing"; status.textContent="nenastaveno";}
+      else {status.className="cell-status"; status.textContent="✓";}
+      cell.appendChild(img); cell.appendChild(flag); cell.appendChild(code); cell.appendChild(status);
+      strip.appendChild(cell);
+    });
+    card.appendChild(strip);
+
+    // Edit section
+    const editSec=document.createElement("div"); editSec.className="img-card-edit"; editSec.id="edit-"+fi.id;
+
+    // Název
+    const nameRow=document.createElement("div"); nameRow.style.cssText="display:flex;align-items:center;gap:10px;margin-bottom:12px";
+    nameRow.innerHTML=`<span style="font-size:12px;color:#888;white-space:nowrap;font-weight:600">Název:</span>`;
+    const nameInp=document.createElement("input"); nameInp.type="text"; nameInp.value=fi.label||""; nameInp.placeholder="Název obrázku";
+    nameInp.oninput=()=>{fi.label=nameInp.value.trim();persist();name.textContent=fi.label||"Obrázek "+(idx+1);};
+    nameRow.appendChild(nameInp); editSec.appendChild(nameRow);
+
+    // URL řádky
+    ALL_LANGS.forEach(l=>{
+      const row=document.createElement("div"); row.className="edit-row";
+      row.innerHTML=`<span class="flag">${l.flag}</span>`;
+      const inp=document.createElement("input"); inp.type="text"; inp.value=fi[l.code]||"";
+      inp.placeholder=l.code==="cs"?"Výchozí URL (CS)":"URL pro "+l.label;
+      inp.oninput=()=>{
+        fi[l.code]=inp.value.trim(); persist();
+        const pvImg=document.getElementById(`pv-${fi.id}-${l.code}`);
+        if(pvImg) pvImg.src=inp.value.trim()||BLANK_CELL;
+        const st=document.getElementById(`st-${fi.id}-${l.code}`);
+        if(st){if(inp.value.trim()){st.className="cell-status";st.textContent="✓";}else{st.className="cell-status missing";st.textContent="nenastaveno";}}
+      };
+      row.appendChild(inp); editSec.appendChild(row);
+    });
+
+    const saveBtn=document.createElement("button"); saveBtn.className="btn-primary btn-sm"; saveBtn.style.marginTop="12px"; saveBtn.textContent="✓ Uložit změny";
+    saveBtn.onclick=()=>{persist();toggleCardEdit(fi.id,editBtn);toast("✓ Změny uloženy");};
+    editSec.appendChild(saveBtn); card.appendChild(editSec);
+    container.appendChild(card);
+  });
+}
+
+function toggleCardEdit(id, btn) {
+  const el=document.getElementById("edit-"+id); if(!el) return;
+  el.classList.toggle("open");
+  btn.textContent=el.classList.contains("open")?"✕ Zavřít":"✏ Upravit";
+}
+
+// ══════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════
+function initSettingsPage() {
+  const inp = document.getElementById("api-key-input");
+  if (inp && state.apiKey) inp.value = state.apiKey;
+  updateApiStatus();
+}
+
+function saveApiKey() {
+  const val = (document.getElementById("api-key-input")?.value||"").trim();
+  state.apiKey = val;
+  try { localStorage.setItem("apiKey", val); } catch{}
+  updateApiStatus();
+  toast(val ? "✓ API klíč uložen" : "API klíč odstraněn");
+}
+
+function toggleApiKeyVisibility() {
+  const inp = document.getElementById("api-key-input");
+  if (!inp) return;
+  inp.type = inp.type === "password" ? "text" : "password";
+}
+
+async function testApiKey() {
+  const btn = document.getElementById("btn-test-api");
+  const status = document.getElementById("api-status");
+  if (!state.apiKey) { alert("Nejprve zadejte a uložte API klíč."); return; }
+  btn.disabled = true;
+  btn.textContent = "⏳ Testuji...";
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": state.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 10,
+        messages: [{ role: "user", content: "Odpověz pouze slovem: OK" }]
+      })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.content?.[0]?.text) {
+      status.className = "api-status ok";
+      status.textContent = "✓ Připojení funguje — API klíč je platný";
+      btn.textContent = "✓ Funguje";
+    } else {
+      const msg = data.error?.message || JSON.stringify(data);
+      status.className = "api-status warn";
+      status.textContent = "✕ Chyba: " + msg;
+      btn.textContent = "🔌 Otestovat znovu";
+      btn.disabled = false;
+    }
+  } catch(e) {
+    status.className = "api-status warn";
+    status.textContent = "✕ CORS chyba — spusťte soubor přes lokální server (viz nápověda níže)";
+    btn.textContent = "🔌 Otestovat znovu";
+    btn.disabled = false;
+  }
+}
+
+function updateApiStatus() {
+  const el = document.getElementById("api-status");
+  if (!el) return;
+  if (state.apiKey && state.apiKey.startsWith("sk-ant-")) {
+    el.className = "api-status ok"; el.textContent = "✓ API klíč je nastaven";
+  } else if (state.apiKey) {
+    el.className = "api-status warn"; el.textContent = "⚠ Klíč vypadá nesprávně (měl by začínat sk-ant-)";
+  } else {
+    el.className = "api-status warn"; el.textContent = "⚠ API klíč není nastaven";
+  }
+}
+
+// ══════════════════════════════════════════
+// BACKUP — EXPORT / IMPORT
+// ══════════════════════════════════════════
+function exportBackup() {
+  const backup = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    fixImgs: state.fixImgs,
+    // API klíč se záměrně neukládá
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `prekladac-zaloha-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("✓ Záloha exportována");
+}
+
+function importBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version || !Array.isArray(data.fixImgs)) {
+        throw new Error("Neplatný formát zálohy.");
+      }
+      const count = data.fixImgs.length;
+      const existing = state.fixImgs.length;
+
+      // Confirm if overwriting
+      if (existing > 0) {
+        const ok = confirm(
+          `Importovat ${count} obrázků?\n\nStávající záznamy (${existing}) budou nahrazeny.`
+        );
+        if (!ok) { input.value = ""; return; }
+      }
+
+      state.fixImgs = data.fixImgs;
+      persist();
+      updateBadges();
+      renderSaved();
+
+      // Show status
+      const el = document.getElementById("backup-status");
+      el.style.display = "block";
+      el.style.color = "#18bd13";
+      el.textContent = `✓ Importováno ${count} obrázků z ${data.exportedAt?.slice(0,10) || "zálohy"}.`;
+      setTimeout(() => { el.style.display = "none"; }, 4000);
+
+      toast(`✓ Importováno ${count} obrázků`);
+    } catch(err) {
+      alert("Chyba při importu: " + err.message);
+    }
+    input.value = "";
+  };
+  reader.readAsText(file);
+}
+// ══════════════════════════════════════════
+buildAddRows();
+renderSaved();
+updateBadges();
+updateApiStatus();
+
+document.getElementById("api-key-input")?.addEventListener("keydown", e=>{ if(e.key==="Enter") saveApiKey(); });
+
+</script>
+</body>
+</html>
