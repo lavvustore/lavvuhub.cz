@@ -479,27 +479,68 @@ function extractTextBlocks(html) {
 // ══════════════════════════════════════════
 // CLAUDE
 // ══════════════════════════════════════════
-async function translateWithClaude(blocks,lang) {
-  const langLabel=LANGUAGES.find(l=>l.code===lang)?.label||lang;
-  let toTrans=blocks.filter(b=>["text","button_other"].includes(b.type));
-  const navBlock=blocks.find(b=>b.type==="nav");
-  if (navBlock&&!FIXED_TRANS.nav[lang]) toTrans.push(navBlock);
-  if (toTrans.length>0) {
-    const prompt=`Jsi odborný překladatel newsletterů pro velkoobchodní zákazníky (hodináře a zlatníky). Překládej do: ${langLabel}.\nPRAVIDLA: vykání, odborná terminologie, číselné údaje a jednotky NEMĚNIT, CAPS zachovat, co nejkratší.\nVrať POUZE JSON: [{"id":číslo,"translated":"text"}]\nTexty: ${JSON.stringify(toTrans.map(b=>({id:b.id,original:b.original})))}`;
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":state.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:4000,messages:[{role:"user",content:prompt}]})
-    });
-    if (!resp.ok) { const e=await resp.json(); throw new Error(e.error?.message||"API chyba: "+resp.status); }
-    const data=await resp.json();
-    const text=(data.content||[]).map(c=>c.text||"").join("");
-    const clean=text.replace(/```json|```/g,"").trim();
-    let trans=[]; try{trans=JSON.parse(clean);}catch{const m=clean.match(/\[[\s\S]*\]/);if(m)try{trans=JSON.parse(m[0]);}catch{}}
-    const map={}; trans.forEach(t=>{map[t.id]=t.translated;});
-    blocks=blocks.map(b=>map[b.id]!==undefined?{...b,translated:map[b.id]}:b);
+async function callClaude(prompt) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": state.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: 8000,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || "API chyba: " + resp.status); }
+  const data = await resp.json();
+  const text = (data.content || []).map(c => c.text || "").join("");
+  const clean = text.replace(/```json|```/g, "").trim();
+  let result = [];
+  try { result = JSON.parse(clean); }
+  catch { const m = clean.match(/\[[\s\S]*\]/); if (m) try { result = JSON.parse(m[0]); } catch {} }
+  return result;
+}
+
+async function translateWithClaude(blocks, lang) {
+  const langLabel = LANGUAGES.find(l => l.code === lang)?.label || lang;
+  let toTrans = blocks.filter(b => ["text", "button_other"].includes(b.type));
+  const navBlock = blocks.find(b => b.type === "nav");
+  if (navBlock && !FIXED_TRANS.nav[lang]) toTrans.push(navBlock);
+
+  if (toTrans.length > 0) {
+    // Dávkování — max 30 bloků najednou aby se nepřekročil limit
+    const BATCH = 30;
+    const map = {};
+
+    for (let i = 0; i < toTrans.length; i += BATCH) {
+      const batch = toTrans.slice(i, i + BATCH);
+      const prompt = `Jsi odborný překladatel newsletterů pro velkoobchodní zákazníky (hodináře a zlatníky). Překládej do jazyka: ${langLabel}.
+
+PRAVIDLA:
+- Vykání (zdvořilostní forma)
+- Odborná terminologie (hodinky, řemínky, zlatnictví, šperky)
+- Číselné údaje a jednotky (mm, g, ks, ct) NEMĚNIT
+- CAPS u nadpisů zachovat jako CAPS
+- Zachovat HTML entity (&amp; apod.)
+- Přeložit KAŽDÝ text — žádný nevynechat
+- Překlad co nejpřesnější a nejpřirozenější
+
+Vrať POUZE JSON pole, nic jiného:
+[{"id": číslo, "translated": "přeložený text"}]
+
+Texty k překladu:
+${JSON.stringify(batch.map(b => ({ id: b.id, original: b.original })), null, 2)}`;
+
+      const results = await callClaude(prompt);
+      results.forEach(r => { map[r.id] = r.translated; });
+    }
+
+    blocks = blocks.map(b => map[b.id] !== undefined ? { ...b, translated: map[b.id] } : b);
   }
-  return applyFixed(blocks,lang);
+  return applyFixed(blocks, lang);
 }
 
 function applyFixed(blocks,lang) {
@@ -548,11 +589,40 @@ function applyAll(html,blocks,lang) {
   const el=FIXED_TRANS.eshop_label[lang]; if (el){out=out.replace(/VELKOOBCHODNÍ\s*E-?SHOP/gi,el);out=out.replace(/VELKOOBCHODNÍM\s*E-?SHOPU/gi,el);}
   const lb=FIXED_TRANS.login_button[lang]; if (lb){out=out.replace(/PŘIHLÁSIT SE ►/g,lb);out=out.replace(/PŘIHLÁSIT SE &amp;#9658;/g,lb);}
   if (!isCsSk){out=out.replace(/(color\s*:\s*)#18[Bb][Dd]13/g,"$1#003357");out=out.replace(/color="#18[Bb][Dd]13"/g,'color="#003357"');out=out.replace(/(background-color\s*:\s*)#18BD13/gi,"$1#003357");out=out.replace(/background-color="#18BD13"/gi,'background-color="#003357"');}
-  blocks.forEach(b=>{
-    if (!b.translated||b.translated===b.original) return;
-    if (["nav","contact_heading","eshop_label","eshop_url","login"].includes(b.type)) return;
-    try{const e=b.original.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");out=out.replace(new RegExp(e,"g"),b.translated);}catch{}
-  });
+  // Texty — nahrazení přes DOM parser (spolehlivější než regex na celém HTML)
+  if (blocks.some(b => b.translated && b.translated !== b.original)) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(out, "text/html");
+
+    const replaceInEl = (el, original, translated) => {
+      // Projdi textové uzly
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      let node;
+      while ((node = walker.nextNode())) nodes.push(node);
+      nodes.forEach(n => {
+        if (n.textContent.includes(original)) {
+          n.textContent = n.textContent.split(original).join(translated);
+        }
+      });
+      // Projdi atributy title a alt
+      el.querySelectorAll("[title],[alt]").forEach(e => {
+        if (e.title === original) e.title = translated;
+        if (e.alt === original) e.alt = translated;
+      });
+    };
+
+    blocks.forEach(b => {
+      if (!b.translated || b.translated === b.original) return;
+      if (["nav","contact_heading","eshop_label","eshop_url","login"].includes(b.type)) return;
+      try { replaceInEl(doc.body, b.original, b.translated); } catch {}
+    });
+
+    // Serializuj zpět — zachovat doctype a head z originálu
+    const bodyHtml = doc.body.innerHTML;
+    // Nahraď jen <body>...</body> část v originálním HTML
+    out = out.replace(/<body[^>]*>[\s\S]*<\/body>/i, `<body${(out.match(/<body([^>]*)>/i)||['',''])[1]}>${bodyHtml}</body>`);
+  }
   return out;
 }
 
@@ -670,17 +740,27 @@ async function sendChat(lang) {
   addThinking(lang);
 
   const lObj = LANGUAGES.find(l=>l.code===lang);
-  const currentHtml = state.outputs[lang]?.html || "";
   const currentBlocks = state.outputs[lang]?.blocks || [];
 
-  // Build conversation history
   if (!chatHistories[lang]) chatHistories[lang] = [];
 
-  const systemPrompt = `Jsi odborný překladatel newsletterů pro velkoobchodní zákazníky (hodináře a zlatníky). Překládáš do jazyka: ${lObj.label}.
-Uživatel ti pošle požadavek na opravu překladu. Proveď opravy v přeloženém HTML a vrať POUZE opravené HTML bez jakéhokoliv komentáře nebo vysvětlení — jen samotný HTML kód.
-Zachovej veškeré HTML tagy, atributy a strukturu beze změny. Měň pouze textový obsah dle pokynů.`;
+  // Pošleme jen přeložené texty jako seznam — ne celé HTML
+  const editableBlocks = currentBlocks.filter(b =>
+    !["nav","contact_heading","eshop_label","eshop_url","login"].includes(b.type) && b.translated
+  );
 
-  chatHistories[lang].push({ role:"user", content: `Aktuální přeložené HTML:\n\`\`\`html\n${currentHtml}\n\`\`\`\n\nPožadavek na opravu: ${msg}` });
+  const blockList = editableBlocks.map(b => `ID ${b.id}: "${b.translated}"`).join("\n");
+
+  const systemPrompt = `Jsi odborný překladatel newsletterů pro velkoobchodní zákazníky (hodináře a zlatníky) do jazyka: ${lObj.label}.
+Dostaneš seznam přeložených textových bloků ve formátu "ID číslo: text" a pokyn co opravit.
+Vrať POUZE JSON pole upravených bloků ve formátu: [{"id": číslo, "translated": "opravený text"}]
+Vrať pouze bloky které jsi změnil. Nezměněné bloky nevracej.
+Žádný komentář, žádné vysvětlení — jen JSON.`;
+
+  chatHistories[lang].push({
+    role: "user",
+    content: `Přeložené texty:\n${blockList}\n\nPokyn: ${msg}`
+  });
 
   try {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -693,7 +773,7 @@ Zachovej veškeré HTML tagy, atributy a strukturu beze změny. Měň pouze text
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 8000,
+        max_tokens: 2000,
         system: systemPrompt,
         messages: chatHistories[lang]
       })
@@ -702,33 +782,42 @@ Zachovej veškeré HTML tagy, atributy a strukturu beze změny. Měň pouze text
     const data = await resp.json();
     const reply = (data.content||[]).map(c=>c.text||"").join("").trim();
 
-    // Extract HTML from reply
-    let newHtml = reply;
-    const htmlMatch = reply.match(/```html\s*([\s\S]*?)```/i) || reply.match(/```\s*([\s\S]*?)```/);
-    if (htmlMatch) newHtml = htmlMatch[1].trim();
-    // If reply contains full HTML doc
-    if (!newHtml.includes("<html") && !newHtml.includes("<!DOCTYPE") && reply.includes("<html")) newHtml = reply;
+    // Parse JSON odpověď
+    let changes = [];
+    const clean = reply.replace(/```json|```/g,"").trim();
+    try { changes = JSON.parse(clean); }
+    catch { const m=clean.match(/\[[\s\S]*\]/); if(m) try{changes=JSON.parse(m[0]);}catch{} }
 
-    // Save assistant reply (summary, not full HTML)
-    chatHistories[lang].push({ role:"assistant", content: "Opraveno dle vašeho požadavku." });
+    if (!changes.length) throw new Error("Claude nevrátil žádné změny. Zkuste přesněji popsat co opravit.");
 
-    // Update state
+    // Aplikuj změny do bloků
+    const map = {};
+    changes.forEach(c => { map[c.id] = c.translated; });
+    const updatedBlocks = currentBlocks.map(b =>
+      map[b.id] !== undefined ? {...b, translated: map[b.id]} : b
+    );
+    state.outputs[lang].blocks = updatedBlocks;
+
+    // Přegeneruj HTML s novými texty
+    const newHtml = applyAll(state.html, updatedBlocks, lang);
     state.outputs[lang].html = newHtml;
+
+    // Ulož do chatové historie jen shrnutí
+    chatHistories[lang].push({ role:"assistant", content: `Upraveno ${changes.length} textů.` });
 
     // Refresh iframe
     loadIframe(lang);
 
-    // Remove thinking, add confirmation
     const container = document.getElementById("chat-msgs-"+lang);
     const thinking = container?.querySelector(".chat-thinking");
     if (thinking) thinking.remove();
-    addChatMsg(lang, "assistant", "✓ Hotovo — náhled byl aktualizován.");
+    addChatMsg(lang, "assistant", `✓ Upraveno ${changes.length} ${changes.length===1?"text":"texty/ů"} — náhled aktualizován.`);
 
   } catch(e) {
     const container = document.getElementById("chat-msgs-"+lang);
     const thinking = container?.querySelector(".chat-thinking");
     if (thinking) thinking.remove();
-    addChatMsg(lang, "assistant", "⚠ Chyba: "+e.message);
+    addChatMsg(lang, "assistant", "⚠ Chyba: " + e.message);
   }
 
   btn.disabled = false;
